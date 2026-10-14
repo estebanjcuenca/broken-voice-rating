@@ -62,7 +62,8 @@ function upd(){$('#bar').textContent=`${done()} van ${total} fragmenten beoordee
 
 function payload(){return {tester:S.tester,native:S.native,region:S.region,at:new Date().toISOString(),ratings:D.clips.map(c=>({clip:c.id,accent:(S.r[c.id]||{}).accent,natural:(S.r[c.id]||{}).natural,notes:(S.r[c.id]||{}).notes||''}))}}
 async function send(){const p=JSON.stringify(payload());let ok=false;
- if(D.endpoint){try{await fetch(D.endpoint,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:p});ok=true}catch(e){}}
+ let ep=D.endpoint;try{const c=await (await fetch('config.json',{cache:'no-store'})).json();ep=c.endpoint||ep}catch(e){}
+ if(ep){try{const r=await fetch(ep.replace(/\/$/,'')+'/submit',{method:'POST',headers:{'Content-Type':'text/plain'},body:p});ok=r.ok}catch(e){}}
  S.done=true;persist();$('#send').disabled=true;
  $('#msg').innerHTML=ok?'<b>Bedankt!</b> Je antwoorden zijn verstuurd. 🙏 Voor de zekerheid kun je hieronder een kopie bewaren; dat hoeft niet.':'<b>Bedankt!</b> Automatisch versturen is niet beschikbaar. Kopieer de tekst hieronder en stuur die naar mij door.';
  {$('#fb').innerHTML=`<textarea readonly id="ta">${esc(p)}</textarea><p><button class="big" id="cp">Kopieer</button></p>`;$('#ta').onfocus=e=>e.target.select();
