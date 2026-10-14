@@ -30,7 +30,7 @@ const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&qu
 const total=D.clips.length, done=()=>D.clips.filter(c=>S.r[c.id]&&S.r[c.id].accent&&S.r[c.id].natural).length;
 
 function intro(){$('#m').innerHTML=`<h1>Help me Nederlandse stemmen te beoordelen</h1>
-<div class="card"><p>Ik bouw een Nederlandse taaltutor en wil weten welke computerstem het meest als een echte Nederlander klinkt. Jij luistert naar ${total} korte fragmenten (zo'n 15 minuten) en geeft elk twee cijfers van 1 tot 5. Je hoeft geen naam in te vullen; je antwoorden zijn anoniem. Je voortgang wordt in je browser bewaard.</p>
+<div class="card"><p>Ik bouw een Nederlandse taaltutor en wil weten welke computerstem het meest als een echte Nederlander klinkt. Jij luistert naar ${total} korte fragmenten (zo'n 15 minuten) en geeft elk twee cijfers van 1 tot 5. Je hoeft geen naam in te vullen; je antwoorden zijn anoniem. Je voortgang wordt in je browser bewaard. Aan het einde stuur je je antwoorden naar mij door.</p>
 <p class="mut">Gebruik het liefst een koptelefoon. Je mag elk fragment zo vaak beluisteren als je wilt. Je ziet niet welke stem het is.</p>
 <p><b>Ben je Nederlander of Vlaming (moedertaalspreker)?</b><br>
 <label class="r"><input type="radio" name="n" value="ja"> Ja</label><label class="r"><input type="radio" name="n" value="nee"> Nee</label></p>
@@ -51,23 +51,24 @@ function rate(){const m=$('#m');
   <audio controls preload="none" src="audio/${c.id}.mp3"></audio>${grp(c.id,'accent','Accent','buitenlands','native')}${grp(c.id,'natural','Natuurlijk','robot','mens')}
   <input type="text" data-c="${c.id}" maxlength="300" placeholder="Opmerking (optioneel): fout woord of klank?" value="${esc((S.r[c.id]||{}).notes||'')}"></div>`).join('');
   m.appendChild(el)});
- const f=document.createElement('div');f.className='card';f.innerHTML=`<button class="big" id="send" disabled>Versturen</button><p class="mut" id="msg"></p><div id="fb"></div>`;m.appendChild(f);
+ const f=document.createElement('div');f.className='card';f.innerHTML=`<button class="big" id="send" disabled>Afronden</button><p class="mut" id="msg"></p><div id="fb"></div>`;m.appendChild(f);
  m.querySelectorAll('.scale button').forEach(b=>b.onclick=()=>{const id=b.dataset.c,k=b.dataset.k,v=+b.dataset.v;S.r[id]=S.r[id]||{};S.r[id][k]=S.r[id][k]===v?null:v;persist();
   b.parentElement.querySelectorAll('button').forEach(x=>x.classList.toggle('on',S.r[id][k]===+x.dataset.v));upd()});
  m.querySelectorAll('input[type=text]').forEach(i=>i.oninput=()=>{const id=i.dataset.c;S.r[id]=S.r[id]||{};S.r[id].notes=i.value;persist()});
  $('#send').onclick=send;upd()}
 
 function upd(){$('#bar').textContent=`${done()} van ${total} fragmenten beoordeeld`;const b=$('#send');if(b)b.disabled=done()<total;
- const g=$('#msg');if(g&&!S.done)g.textContent=done()<total?'Beoordeel alle fragmenten om te kunnen versturen.':'Klaar! Klik op Versturen.'}
+ const g=$('#msg');if(g&&!S.done)g.textContent=done()<total?'Beoordeel alle fragmenten om te kunnen versturen.':'Klaar! Klik op Afronden.'}
 
 function payload(){return {tester:S.tester,native:S.native,region:S.region,at:new Date().toISOString(),ratings:D.clips.map(c=>({clip:c.id,accent:(S.r[c.id]||{}).accent,natural:(S.r[c.id]||{}).natural,notes:(S.r[c.id]||{}).notes||''}))}}
-async function send(){const p=JSON.stringify(payload());let ok=false;
- let ep=D.endpoint;try{const c=await (await fetch('config.json',{cache:'no-store'})).json();ep=c.endpoint||ep}catch(e){}
- if(ep){try{const r=await fetch(ep.replace(/\/$/,'')+'/submit',{method:'POST',headers:{'Content-Type':'text/plain'},body:p});ok=r.ok}catch(e){}}
- S.done=true;persist();$('#send').disabled=true;
- $('#msg').innerHTML=ok?'<b>Bedankt!</b> Je antwoorden zijn verstuurd. 🙏 Voor de zekerheid kun je hieronder een kopie bewaren; dat hoeft niet.':'<b>Bedankt!</b> Automatisch versturen is niet beschikbaar. Kopieer de tekst hieronder en stuur die naar mij door.';
- {$('#fb').innerHTML=`<textarea readonly id="ta">${esc(p)}</textarea><p><button class="big" id="cp">Kopieer</button></p>`;$('#ta').onfocus=e=>e.target.select();
-  $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(p);$('#cp').textContent='Gekopieerd ✓'}catch(e){$('#ta').select()}}}}
+function send(){S.done=true;persist();finish()}
+function finish(){const p='STEMMEN1 '+JSON.stringify(payload());$('#send').disabled=true;
+ $('#msg').innerHTML='<b>Bedankt!</b> Laatste stap: stuur je antwoorden naar mij door (WhatsApp, mail, ...). Kies hieronder hoe.';
+ $('#fb').innerHTML=`<p><button class="big" id="sh">Stuur mijn antwoorden door</button> <button class="big" id="cp">Kopieer</button> <button class="big" id="dl">Download</button></p><textarea readonly id="ta">${esc(p)}</textarea>`;
+ $('#ta').onfocus=e=>e.target.select();
+ $('#cp').onclick=async()=>{try{await navigator.clipboard.writeText(p);$('#cp').textContent='Gekopieerd ✓'}catch(e){$('#ta').select()}};
+ $('#dl').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([p],{type:'text/plain'}));a.download='stemmen-'+S.tester.slice(0,6)+'.txt';a.click()};
+ $('#sh').onclick=async()=>{if(navigator.share){try{await navigator.share({title:'Stemmen rating',text:p})}catch(e){}}else{location.href='https://wa.me/?text='+encodeURIComponent(p)}}}
 
-if(S.done){rate();$('#msg').textContent='Je hebt al verstuurd. Bedankt!';$('#send').disabled=true}else if(Object.keys(S.r).length&&S.native)rate();else intro();
+if(S.done){rate();finish()}else if(Object.keys(S.r).length&&S.native)rate();else intro();
 </script></body></html>
